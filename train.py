@@ -3,9 +3,36 @@ import torch
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from model import GPT, GPTConfig
+import requests
 
 
-# Dataset text cơ bản
+# -------------------------
+# Load dữ liệu
+# -------------------------
+def load_local_data():
+    with open("data/input.txt", "r", encoding="utf-8") as f:
+        return f.read()
+
+def load_remote_data():
+    url = "https://www.gutenberg.org/cache/epub/1342/pg1342.txt"  # thay link nếu muốn
+    response = requests.get(url, timeout=10)
+    response.raise_for_status()
+    return response.text
+
+def load_combined_data():
+    local_text = load_local_data()
+    try:
+        remote_text = load_remote_data()
+        print("✅ Đã tải thêm dữ liệu từ URL")
+        return local_text + "\n" + remote_text
+    except Exception as e:
+        print(f"⚠️ Không lấy được dữ liệu từ URL ({e}), chỉ dùng local input.txt")
+        return local_text
+
+
+# -------------------------
+# Dataset
+# -------------------------
 class TextDataset(Dataset):
     def __init__(self, data, block_size):
         self.data = data
@@ -20,10 +47,12 @@ class TextDataset(Dataset):
         return torch.tensor(x, dtype=torch.long), torch.tensor(y, dtype=torch.long)
 
 
+# -------------------------
+# Train loop
+# -------------------------
 def train():
-    # đọc dữ liệu
-    with open("data/input.txt", "r", encoding="utf-8") as f:
-        text = f.read()
+    # lấy dữ liệu từ local + remote (nếu có)
+    text = load_combined_data()
 
     # tạo vocab
     vocab = sorted(list(set(text)))
@@ -31,7 +60,7 @@ def train():
     itos = {i: ch for ch, i in stoi.items()}
     vocab_size = len(vocab)
 
-    # encode text
+    # encode dữ liệu sang id
     data = [stoi[ch] for ch in text]
 
     # config GPT
@@ -40,7 +69,7 @@ def train():
 
     # chọn device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("Training on:", device)
+    print("🚀 Training on:", device)
     model = model.to(device)
 
     # dataset + dataloader
@@ -50,27 +79,21 @@ def train():
     optimizer = optim.AdamW(model.parameters(), lr=3e-4)
 
     # training loop
-    num_epochs = 20
-    for epoch in range(num_epochs):
-        for i, (xb, yb) in enumerate(loader):
+    for epoch in range(20):  # tăng số epoch nếu muốn
+        for xb, yb in loader:
             xb, yb = xb.to(device), yb.to(device)
-
             logits, loss = model(xb, yb)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+        print(f"📌 Epoch {epoch+1} | Loss: {loss.item():.4f}")
 
-            if i % 50 == 0:
-                print(f"Epoch {epoch+1}/{num_epochs} | Step {i} | Loss: {loss.item():.4f}")
+        # lưu model theo từng epoch
+        torch.save(model.state_dict(), f"gpt_model_epoch{epoch+1}.pt")
 
-        # lưu checkpoint theo epoch
-        ckpt_name = f"gpt_model_epoch{epoch+1}.pt"
-        torch.save(model.state_dict(), ckpt_name)
-        print(f"✅ Saved checkpoint: {ckpt_name}")
-
-    # lưu final model
+    # lưu model cuối
     torch.save(model.state_dict(), "gpt_model.pt")
-    print("🎉 Training finished. Final model saved as gpt_model.pt")
+    print("✅ Training hoàn tất, model đã lưu vào gpt_model.pt")
 
 
 if __name__ == "__main__":
