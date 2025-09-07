@@ -1,16 +1,19 @@
 # inference.py
 import torch
 from model import GPT, GPTConfig
+import json
 
 
 def load_vocab():
-    # đọc lại vocab từ input.txt (giống train.py)
-    with open("data/input.txt", "r", encoding="utf-8") as f:
-        text = f.read()
-    vocab = sorted(list(set(text)))
-    stoi = {ch: i for i, ch in enumerate(vocab)}
-    itos = {i: ch for ch, i in stoi.items()}
-    return stoi, itos, len(vocab)
+    # đọc vocab từ file vocab.json (được lưu trong train.py)
+    with open("vocab.json", "r", encoding="utf-8") as f:
+        vocab_info = json.load(f)
+
+    stoi = {ch: int(i) for ch, i in vocab_info["stoi"].items()}
+    itos = {int(i): ch for i, ch in vocab_info["itos"].items()}
+    vocab_size = vocab_info["vocab_size"]
+
+    return stoi, itos, vocab_size
 
 
 def generate_text(start_text="Hello", max_new_tokens=100, ckpt_path="gpt_model.pt"):
@@ -24,8 +27,8 @@ def generate_text(start_text="Hello", max_new_tokens=100, ckpt_path="gpt_model.p
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Generating on:", device)
 
-    # load checkpoint (an toàn hơn với weights_only=True)
-    state_dict = torch.load(ckpt_path, map_location=device, weights_only=True)
+    # load checkpoint
+    state_dict = torch.load(ckpt_path, map_location=device)
     model.load_state_dict(state_dict)
     model = model.to(device)
     model.eval()

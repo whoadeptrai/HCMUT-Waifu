@@ -4,6 +4,7 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from model import GPT, GPTConfig
 import requests
+import json
 
 
 # -------------------------
@@ -60,6 +61,15 @@ def train():
     itos = {i: ch for ch, i in stoi.items()}
     vocab_size = len(vocab)
 
+    # lưu vocab ra file JSON để inference dùng lại
+    vocab_info = {
+        "stoi": stoi,
+        "itos": itos,
+        "vocab_size": vocab_size
+    }
+    with open("vocab.json", "w", encoding="utf-8") as f:
+        json.dump(vocab_info, f, ensure_ascii=False, indent=2)
+
     # encode dữ liệu sang id
     data = [stoi[ch] for ch in text]
 
@@ -79,7 +89,7 @@ def train():
     optimizer = optim.AdamW(model.parameters(), lr=3e-4)
 
     # training loop
-    for epoch in range(20):  # tăng số epoch nếu muốn
+    for epoch in range(5):  # tăng số epoch nếu muốn
         for xb, yb in loader:
             xb, yb = xb.to(device), yb.to(device)
             logits, loss = model(xb, yb)
@@ -93,7 +103,7 @@ def train():
 
     # lưu model cuối
     torch.save(model.state_dict(), "gpt_model.pt")
-    print("✅ Training hoàn tất, model đã lưu vào gpt_model.pt")
+    print("✅ Training hoàn tất, model đã lưu vào gpt_model.pt và vocab.json")
 
 
 if __name__ == "__main__":
