@@ -90,10 +90,11 @@ def train():
 
     # training loop
     for epoch in range(5):  # tăng số epoch nếu muốn
+        model.train()  # đảm bảo training mode
         for xb, yb in loader:
-            xb, yb = xb.to(device), yb.to(device)
+            xb, yb = xb.to(device), yb.to(device)   # dữ liệu cũng chuyển về device
             logits, loss = model(xb, yb)
-            optimizer.zero_grad()
+            optimizer.zero_grad(set_to_none=True)
             loss.backward()
             optimizer.step()
         print(f"📌 Epoch {epoch+1} | Loss: {loss.item():.4f}")
