@@ -15,7 +15,7 @@ def load_local_data():
         return f.read()
 
 def load_remote_data():
-    url = "https://www.gutenberg.org/cache/epub/1342/pg1342.txt"  # thay link nếu muốn
+    url = "https://huggingface.co/datasets/daily_dialog/resolve/main/dailydialog_text.txt"
     response = requests.get(url, timeout=10)
     response.raise_for_status()
     return response.text
@@ -79,22 +79,22 @@ def train():
 
     # chọn device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("🚀 Training on:", device)
+    print("🚀 Training on:", device, torch.cuda.get_device_name(0) if torch.cuda.is_available() else "")
+
     model = model.to(device)
 
-    # dataset + dataloader
+    # dataset + dataloader (pin_memory để tăng tốc GPU)
     dataset = TextDataset(data, block_size=config.block_size)
-    loader = DataLoader(dataset, batch_size=32, shuffle=True)
+    loader = DataLoader(dataset, batch_size=32, shuffle=True, pin_memory=True)
 
     optimizer = optim.AdamW(model.parameters(), lr=3e-4)
 
     # training loop
     for epoch in range(5):  # tăng số epoch nếu muốn
-        model.train()  # đảm bảo training mode
         for xb, yb in loader:
-            xb, yb = xb.to(device), yb.to(device)   # dữ liệu cũng chuyển về device
+            xb, yb = xb.to(device, non_blocking=True), yb.to(device, non_blocking=True)
             logits, loss = model(xb, yb)
-            optimizer.zero_grad(set_to_none=True)
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
         print(f"📌 Epoch {epoch+1} | Loss: {loss.item():.4f}")
