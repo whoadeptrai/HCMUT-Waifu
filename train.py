@@ -16,7 +16,7 @@ def load_local_data():
         return f.read()
 
 def load_remote_data():
-    url = "https://raw.githubusercontent.com/PolyAI-LDN/conversational-datasets/master/daily_dialog/dialogues_text.txt"  
+    url = "https://raw.githubusercontent.com/suriyadeepan/datasets/master/chatbot/movie_lines.txt"  
     response = requests.get(url, timeout=10)
     response.raise_for_status()
     return response.text
