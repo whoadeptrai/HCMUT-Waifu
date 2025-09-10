@@ -5,6 +5,7 @@ from torch.utils.data import Dataset, DataLoader
 from model import GPT, GPTConfig
 import requests
 import json
+import os
 
 
 # -------------------------
@@ -15,7 +16,7 @@ def load_local_data():
         return f.read()
 
 def load_remote_data():
-    url = "https://huggingface.co/datasets/daily_dialog/resolve/main/dailydialog_text.txt"
+    url = "https://raw.githubusercontent.com/PolyAI-LDN/conversational-datasets/master/daily_dialog/dialogues_text.txt"  
     response = requests.get(url, timeout=10)
     response.raise_for_status()
     return response.text
@@ -79,20 +80,25 @@ def train():
 
     # chọn device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("🚀 Training on:", device, torch.cuda.get_device_name(0) if torch.cuda.is_available() else "")
+    print("🚀 Training on:", device)
+
+    # nếu có model cũ thì load để train tiếp
+    if os.path.exists("gpt_model.pt"):
+        print("🔄 Đang load model cũ để train tiếp...")
+        model.load_state_dict(torch.load("gpt_model.pt", map_location=device, weights_only=True))
 
     model = model.to(device)
 
-    # dataset + dataloader (pin_memory để tăng tốc GPU)
+    # dataset + dataloader
     dataset = TextDataset(data, block_size=config.block_size)
-    loader = DataLoader(dataset, batch_size=32, shuffle=True, pin_memory=True)
+    loader = DataLoader(dataset, batch_size=32, shuffle=True)
 
     optimizer = optim.AdamW(model.parameters(), lr=3e-4)
 
     # training loop
     for epoch in range(5):  # tăng số epoch nếu muốn
         for xb, yb in loader:
-            xb, yb = xb.to(device, non_blocking=True), yb.to(device, non_blocking=True)
+            xb, yb = xb.to(device), yb.to(device)
             logits, loss = model(xb, yb)
             optimizer.zero_grad()
             loss.backward()
